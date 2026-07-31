@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Sensitive security concern
+    url: https://github.com/iotdetective
+    about: Do not post sensitive security issues, real case material, credentials, cookies, or private captures in public GitHub issues.
