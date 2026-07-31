@@ -1,0 +1,20 @@
+# Chrome packed extension files
+*.crx
+*.pem
+
+# Captures / evidence exports
+*.zip
+*.zip.sha256.txt
+captures/
+exports/
+test-output/
+
+# System files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.vscode/
+.idea/
+*.tmp
+*.log
