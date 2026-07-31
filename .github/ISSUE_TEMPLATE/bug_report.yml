@@ -1,0 +1,155 @@
+name: Bug Report
+description: Report a problem with CaseCapture OSINT Agency Edition
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Important
+
+        Do **not** upload real case evidence, victim information, suspect information, credentials, cookies, private captures, or investigative material to GitHub issues.
+
+        Use test captures or sanitized examples only.
+
+  - type: input
+    id: version
+    attributes:
+      label: Tool Version
+      description: What version of CaseCapture OSINT are you using?
+      placeholder: "Example: v0.5.1"
+    validations:
+      required: true
+
+  - type: input
+    id: chrome_version
+    attributes:
+      label: Chrome Version
+      description: What version of Google Chrome are you using?
+      placeholder: "Example: Chrome 126.0.0000.000"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating_system
+    attributes:
+      label: Operating System
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS
+        - Linux
+        - ChromeOS
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: install_method
+    attributes:
+      label: Installation Method
+      options:
+        - Load unpacked source folder
+        - Packed CRX
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: page_type
+    attributes:
+      label: Website / Page Type
+      description: Do not provide the actual case URL if it is sensitive.
+      options:
+        - Public webpage
+        - Social media page
+        - Login-required page
+        - Long scrolling page
+        - Dynamic / heavily scripted page
+        - Internal test page
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem Description
+      description: Describe what happened.
+      placeholder: "Explain the issue in plain language."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Result
+      description: What did you expect the tool to do?
+      placeholder: "Example: I expected a ZIP evidence package and SHA-256 file to download."
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Result
+      description: What actually happened?
+      placeholder: "Example: The ZIP downloaded, but the full-page screenshot was blank."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: visible_screenshot
+    attributes:
+      label: Did the visible screenshot work?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+        - "Not applicable"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: fullpage_screenshot
+    attributes:
+      label: Did the full-page screenshot work?
+      options:
+        - "Yes"
+        - "No"
+        - "Not sure"
+        - "Not applicable"
+    validations:
+      required: true
+
+  - type: textarea
+    id: error_message
+    attributes:
+      label: Error Message
+      description: Paste any error message here. Remove sensitive information first.
+      placeholder: "Paste sanitized error messages only."
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: Use a public test page when possible.
+      placeholder: |
+        1. Open Chrome.
+        2. Load the extension.
+        3. Navigate to a public test page.
+        4. Click CaseCapture OSINT.
+        5. Run capture.
+        6. Observe the result.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have not included real evidence, credentials, cookies, victim information, suspect information, or private investigative material.
+          required: true
