@@ -1,0 +1,63 @@
+name: Feature Request
+description: Suggest an improvement or new feature for CaseCapture OSINT Agency Edition
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Important
+
+        Do **not** include real case evidence, victim information, suspect information, credentials, cookies, private captures, or investigative material.
+
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature Summary
+      description: What would you like added or changed?
+      placeholder: "Describe the feature in plain language."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem This Would Solve
+      description: What problem would this feature help with?
+      placeholder: "Explain why this would be useful."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Feature Category
+      options:
+        - Screenshots
+        - Reports
+        - Hashing / verification
+        - Metadata
+        - Documentation
+        - Privacy / minimization
+        - Installation / packaging
+        - User interface
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested_behavior
+    attributes:
+      label: Suggested Behavior
+      description: How should the feature work?
+      placeholder: "Describe what the user would do and what the tool would produce."
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmation
+    attributes:
+      label: Confirmation
+      options:
+        - label: I have not included real evidence, credentials, cookies, victim information, suspect information, or private investigative material.
+          required: true
