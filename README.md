@@ -7,3 +7,4 @@ The extension captures browser-observed content, screenshots, page metadata, vis
 The tool is designed for controlled investigative environments such as Windows Sandbox, clean virtual machines, ephemeral desktops, dedicated OSINT browser profiles, or agency-managed forensic workstations.
 
 CaseCapture OSINT does not independently authenticate online content, identify account owners, prove authorship, or replace legal process, preservation requests, subpoenas, warrants, platform records, or agency validation. It documents what was observed in the investigator’s Chrome browser session at the time of capture.
+<img width="478" height="586" alt="image" src="https://github.com/user-attachments/assets/4ddaa03f-ea4d-437e-ba37-04a5697b2cc3" />
