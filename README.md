@@ -1,5 +1,7 @@
 # CaseCapture OSINT Agency Edition
 
+<img width="378" height="487" alt="CaseCapture OSINT Logo" src="https://chatgpt.com/s/m_6a6e5f2736548191a5c90ea3d2a4fef8" />
+
 CaseCapture OSINT Agency Edition is a local-first browser extension designed to help investigators, analysts, agencies, and other authorized users document web content observed during OSINT and online investigations.
 
 The project includes editions for:
