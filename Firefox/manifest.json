@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "CaseCapture OSINT",
+  "description": "Local forensic-style web capture tool for OSINT documentation.",
+  "version": "0.5.1",
+  "permissions": [
+    "activeTab",
+    "tabs",
+    "scripting",
+    "downloads",
+    "storage"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "action": {
+    "default_title": "CaseCapture OSINT",
+    "default_popup": "popup.html"
+  },
+  "background": {
+    "scripts": ["background.js"]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "casecapture-osint@casecapture.local",
+      "strict_min_version": "128.0"
+    }
+  }
+}
