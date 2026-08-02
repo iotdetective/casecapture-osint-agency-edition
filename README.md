@@ -393,39 +393,12 @@ Release assets may include:
 CaseCapture_OSINT_Chrome_VERSION_source.zip
 CaseCapture_OSINT_Chrome_VERSION.crx
 CaseCapture_OSINT_Firefox_VERSION_source.zip
-CaseCapture_OSINT_Firefox_VERSION_unsigned.xpi
-SHA256SUMS.txt
 ```
 
 For most users:
 
 * Use the unpacked source folder for Chrome.
 * Use temporary source loading for Firefox.
-* Treat CRX and unsigned XPI files as optional or advanced packages.
-* Do not describe an XPI as signed unless it has completed Mozilla’s signing process.
-
----
-
-## Private Keys and Signing Files
-
-Chrome may create a `.pem` private key when an extension is packed.
-
-Do not upload or distribute private signing keys.
-
-Add them to `.gitignore`:
-
-```gitignore
-*.pem
-```
-
-Do not include private keys, Mozilla API credentials, signing secrets, access tokens, or recovery information in:
-
-* GitHub repositories
-* Release assets
-* Source ZIP files
-* Case folders
-* Shared drives
-* Email attachments
 
 ---
 
@@ -449,7 +422,7 @@ When reporting a problem, include:
 * Relevant `method_log.json` entries
 * Screenshots with sensitive information removed
 
-Do not upload evidence packages or sensitive investigative information to a public GitHub issue.
+DO NOT upload evidence packages or sensitive investigative information to a public GitHub issue.
 
 ---
 
@@ -473,7 +446,7 @@ Additional documentation may be maintained in the project Wiki, including:
 
 ## Disclaimer
 
-CaseCapture OSINT is intended for lawful, authorized use.
+CaseCapture OSINT is intended for lawful, authorized use. Consult with your agency policy on proper use, authorization, and implementation of software or browser extensions. The source code is open for inspection to allow forensic experts to validate and confirm tool operation, the repository author offers no warranty or guarantee as to operation or use. **AI WARNING:** Artificial intelligence was utilized to help create and maintain these packages.
 
 Users are responsible for complying with:
 
