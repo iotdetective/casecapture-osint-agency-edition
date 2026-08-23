@@ -211,7 +211,7 @@
         color_depth: window.screen?.colorDepth || null,
         pixel_depth: window.screen?.pixelDepth || null
       },
-      privacy_note: "Hardware concurrency, device memory, local IP address, public IP address, cookie values, credential values, and local file paths are not collected."
+      privacy_note: "Hardware concurrency, device memory, IP address attribution data, cookie values, credential values, and local file paths are not collected. Network attribution and infrastructure research is outside the CaseCapture collection process and should be documented separately in the Investigator Supplement."
     },
     storage_inventory: {
       cookies: {

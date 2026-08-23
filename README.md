@@ -10,7 +10,7 @@ The project includes editions for:
 * Google Chrome and compatible Chromium-based browsers
 * Mozilla Firefox
 
-CaseCapture OSINT collects browser-observed information and exports it into a structured, reviewable evidence package.
+CaseCapture OSINT performs user-initiated, local-first webpage capture and exports the resulting material into a structured, reviewable evidence package.
 
 <img width="378" height="487" alt="CaseCapture OSINT extension interface" src="https://github.com/user-attachments/assets/997a053d-98fc-4c13-93f4-b35282f7f314" />
 
@@ -36,13 +36,14 @@ Depending on the browser edition and the webpage being collected, the exported p
 * DOM summary
 * Resource inventory
 * Privacy-limited browser-storage inventory
-* Browser-supported network or performance observations
+* Browser Performance API navigation/resource timing observations
 * Collection method log
 * SHA-256 hashes
 * ZIP evidence package
 * Separate SHA-256 hash file for the completed ZIP
 * Human-readable reports
 * Embedded documentation
+* Linked Investigator Supplement workflow for investigator-authored observations and separately obtained research
 * `index.html` evidence-package landing page
 
 The resulting package is intended to make captured material easier to preserve, review, explain, and validate.
@@ -55,11 +56,9 @@ The resulting package is intended to make captured material easier to preserve, 
 
 The Chrome edition uses browser APIs available in Google Chrome and other compatible Chromium-based browsers.
 
-Depending on the release, Chrome-specific functionality may include limited use of Chrome DevTools Protocol features for:
+The Chrome edition uses the Chrome DevTools Protocol only for page-rendering measurements and supplemental full-page screenshot generation during a user-initiated capture.
 
-* Page-rendering measurements
-* Supplemental full-page screenshots
-* Limited browser-observed network information
+CaseCapture does not use the Chrome DevTools Protocol to collect remote IP addresses, remote ports, DNS information, WHOIS/RDAP data, or other network-attribution information.
 
 ### Mozilla Firefox
 
@@ -121,6 +120,12 @@ CaseCapture OSINT does not intentionally collect:
 The extension may record the presence, name, size, or type of certain browser-accessible items without collecting their sensitive values.
 
 Investigators should review generated packages before sharing them outside their agency or investigative team.
+
+### Network Attribution and Infrastructure Research
+
+CaseCapture does not conduct IP-address attribution, DNS research, WHOIS/RDAP research, hosting-provider identification, CDN analysis, VPN/proxy attribution, traceroute, or similar network-infrastructure investigation. Any such research is the investigator's responsibility and should be conducted separately from the CaseCapture collection process. Relevant findings may be documented in the Investigator Supplement.
+
+The Chrome evidence package may contain `network/performance_resource_timing.json`. That artifact contains browser Performance API resource timing information used to document resources involved in rendering the selected page. It does not contain CDP-observed remote IP/port information or independently perform network attribution.
 
 ---
 
@@ -240,19 +245,21 @@ Permanent installation in standard Firefox releases generally requires a Mozilla
 1. Open a normal public webpage.
 2. Allow the page to fully load.
 3. Open CaseCapture OSINT.
-4. Enter the case information.
-5. Begin the capture.
-6. Keep the target tab active until the capture finishes.
-7. Save both generated files:
+4. Enter the case information, or intentionally load the last case information retained during the current Chrome session and review it.
+5. Enter capture-specific notes as appropriate.
+6. Begin the capture.
+7. Keep the target tab active until the capture finishes.
+8. Save both generated files:
 
 ```text
 CaseCapture_....zip
 CaseCapture_....zip.sha256.txt
 ```
 
-8. Preserve the original ZIP.
-9. Extract a working copy for review.
-10. Open:
+9. Preserve the original ZIP.
+10. Complete the Investigator Supplement when additional observations or separately obtained research should be documented.
+11. Extract a working copy for review.
+12. Open:
 
 ```text
 index.html
@@ -298,6 +305,7 @@ CaseCapture_Package/
 │   ├── dom_summary.json
 │   └── resources.json
 ├── network/
+│   └── performance_resource_timing.json
 ├── documentation/
 └── hashes/
 ```

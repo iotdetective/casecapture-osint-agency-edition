@@ -1,6 +1,6 @@
 const TOOL_INFO = {
   name: "CaseCapture OSINT",
-  version: "0.5.1",
+  version: "0.6.3",
   author: "Richard Theberge",
   code_license: "MIT License",
   documentation_license: "Creative Commons Attribution 4.0 International",
@@ -23,6 +23,16 @@ async function capturePage(caseInfo) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab || !tab.id) throw new Error("No active tab found.");
 
+  let activeUrl;
+  try {
+    activeUrl = new URL(tab.url || "");
+  } catch (_e) {
+    throw new Error("CaseCapture can only capture HTTP and HTTPS webpages.");
+  }
+  if (!['http:', 'https:'].includes(activeUrl.protocol)) {
+    throw new Error("CaseCapture can only capture HTTP and HTTPS webpages.");
+  }
+
   const captureStarted = new Date();
   const utcTimestamp = captureStarted.toISOString();
   const localTimestamp = getLocalTimestamp(captureStarted);
@@ -39,13 +49,11 @@ async function capturePage(caseInfo) {
   let fullPageScreenshotBytes = null;
   let fullPageMethodLog = null;
   let fullPageCaptureStatus = "not_attempted";
-  let cdpNetworkObservation = buildEmptyCdpNetworkObservation();
 
   try {
     const fullPageResult = await captureFullPageWithDebugger(tab.id);
     fullPageScreenshotBytes = dataUrlToUint8Array(fullPageResult.dataUrl);
     fullPageMethodLog = fullPageResult.methodLog;
-    cdpNetworkObservation = fullPageResult.networkObservation || cdpNetworkObservation;
     fullPageCaptureStatus = "success";
   } catch (error) {
     fullPageMethodLog = {
@@ -70,7 +78,6 @@ async function capturePage(caseInfo) {
   const domSummaryJson = JSON.stringify(pageData.dom_summary || {}, null, 2);
   const resourcesJson = JSON.stringify(pageData.resource_inventory || {}, null, 2);
   const performanceJson = JSON.stringify(pageData.performance_summary || {}, null, 2);
-  const networkObservationJson = JSON.stringify(cdpNetworkObservation, null, 2);
 
   const readableHtmlSnapshot = buildReadableHtmlSnapshot(htmlSnapshot, tab.url, {
     case_number: caseInfo.case_number,
@@ -87,16 +94,16 @@ async function capturePage(caseInfo) {
       captured_utc: utcTimestamp
     },
     fullpage_screenshot: fullPageMethodLog || { method: "not_attempted", status: "not_attempted" },
-    network_metadata: {
-      method: "Privacy-minimized browser observation",
-      description: "Resource timing data was collected from the page. Limited DevTools Protocol network events may be collected during the full-page screenshot step. Request headers, cookies, credential values, local/source IP address, public IP address, traceroute, RDAP, WHOIS, and OS-level DNS lookups are not collected by this edition.",
-      status: "success"
+    network_attribution_and_infrastructure_research: {
+      method: "Separate investigator research",
+      description: "CaseCapture does not perform IP address, DNS, WHOIS, hosting provider, CDN, VPN/proxy, or other network attribution research as part of the capture process. Investigators are responsible for conducting any such research separately and documenting relevant findings in the Investigator Supplement.",
+      status: "outside_capture_scope"
     },
     notes: [
       "The visible screenshot is the primary unmodified viewport screenshot.",
       "The full-page screenshot, when successful, is a supplemental browser-rendered capture using Chrome DevTools Protocol.",
       "The full-page capture method temporarily resizes the browser emulation viewport to the page content size, captures a screenshot, then clears the emulation override.",
-      "Network metadata is privacy-minimized. Cookie values, credential values, request headers, local/source IP address, public IP address, traceroute, RDAP, WHOIS, and OS-level DNS lookups are not collected.",
+      "Network attribution and infrastructure research is outside the CaseCapture collection process. Investigators are responsible for conducting any IP address, DNS, WHOIS, hosting provider, CDN, VPN/proxy, or related research separately and documenting relevant findings in the Investigator Supplement.",
       "Dynamic content, lazy-loaded content, animations, embedded media, authentication state, and page changes may affect browser-rendered captures."
     ]
   };
@@ -116,8 +123,7 @@ async function capturePage(caseInfo) {
     storageInventoryHash: await sha256Text(storageInventoryJson),
     domSummaryHash: await sha256Text(domSummaryJson),
     resourcesHash: await sha256Text(resourcesJson),
-    performanceHash: await sha256Text(performanceJson),
-    networkObservationHash: await sha256Text(networkObservationJson)
+    performanceHash: await sha256Text(performanceJson)
   };
 
   const documentationFiles = buildDocumentationFiles();
@@ -138,8 +144,7 @@ async function capturePage(caseInfo) {
     { path: "extracted/storage_inventory.json", description: "Privacy-minimized storage inventory. Counts only; no cookie values, cookie names, localStorage keys/values, or sessionStorage keys/values.", sha256: hashes.storageInventoryHash },
     { path: "extracted/dom_summary.json", description: "DOM summary including headings, buttons, forms, and frames. Form values and credential values are not collected.", sha256: hashes.domSummaryHash },
     { path: "extracted/resources.json", description: "Resource inventory of scripts, stylesheets, media elements, canvas count, and shadow DOM count.", sha256: hashes.resourcesHash },
-    { path: "network/performance_resource_timing.json", description: "Browser Performance API navigation/resource timing summary. Does not include request headers, cookies, or local/source IP.", sha256: hashes.performanceHash },
-    { path: "network/cdp_network_observation.json", description: "Limited privacy-minimized Chrome DevTools Protocol network events observed during capture. Does not include request headers, cookies, credential values, source IP, traceroute, WHOIS, RDAP, or OS-level DNS data.", sha256: hashes.networkObservationHash },
+    { path: "network/performance_resource_timing.json", description: "Browser Performance API navigation/resource timing summary. Does not include request headers, cookies, or the investigator's local/source IP address.", sha256: hashes.performanceHash },
     { path: "method_log.json", description: "Technical log describing screenshot and metadata capture methods.", sha256: hashes.methodLogHash }
   ];
 
@@ -198,9 +203,18 @@ async function capturePage(caseInfo) {
       frame_count: pageData.dom_summary?.frames?.length || 0,
       resource_count: pageData.performance_summary?.resources?.length || 0
     },
+    collection_scope: {
+      summary: "CaseCapture records the browser-observed content and technical information identified in this package. It does not independently perform WHOIS, RDAP, DNS, traceroute, or other investigative enrichment. Investigator-authored observations and separately obtained files should be preserved in a linked investigator supplement.",
+      investigator_supplement_supported: true,
+      primary_capture_finalized_before_supplement: true
+    },
     privacy_minimization: {
       local_source_ip_collected: false,
       public_ip_collected: false,
+      public_ip_independently_determined: false,
+      browser_reported_remote_server_ip_collected: false,
+      browser_reported_remote_server_port_collected: false,
+      dns_resolution_history_collected: false,
       traceroute_collected: false,
       whois_collected: false,
       rdap_collected: false,
@@ -219,7 +233,7 @@ async function capturePage(caseInfo) {
       screenshot_notice: "The visible screenshot is the primary unmodified viewport capture. The full-page screenshot, if present, is a supplemental browser-rendered artifact generated using Chrome DevTools Protocol. Dynamic content, lazy loading, animations, embedded media, authentication state, personalization, localization, browser state, or page changes may affect its appearance.",
       html_notice: "The raw page_snapshot.html is preserved as a technical artifact. The page_snapshot_readable.html file is a review copy that adds a base URL and capture banner to improve readability. The readable version should not be treated as the original page source.",
       image_reference_notice: "The images.json file records image element references observed in the rendered page, including source URLs and alt text when available. It does not necessarily preserve the image binary files as they existed at the time of capture. If page_snapshot.html or page_snapshot_readable.html is opened later, referenced image URLs may retrieve current/live versions from the web, may fail to load, or may load content that has changed since capture. For that reason, screenshot_visible.png and screenshot_fullpage.png are the best visual records of what was observed at the time of capture.",
-      network_metadata_notice: "Network metadata in this package is privacy-minimized and browser-observed. It may help explain what the browser rendered, but it does not include local/source IP address, public IP address, cookies, credential values, request headers, traceroute, WHOIS, RDAP, or OS-level DNS lookup results.",
+      network_research_notice: "Network Attribution and Infrastructure Research: CaseCapture is designed to preserve the webpage and related capture information at the time of collection. Investigators are responsible for conducting any separate IP address, DNS, WHOIS, hosting provider, CDN, VPN/proxy, or other network attribution research independently and documenting relevant findings in the Investigator Supplement.",
       original_and_notes_separated: true
     }
   };
@@ -230,7 +244,7 @@ async function capturePage(caseInfo) {
 
   const indexHtml = buildIndexHtml({ manifest, hasFullPageScreenshot: Boolean(fullPageScreenshotBytes) });
   const indexHash = await sha256Text(indexHtml);
-  manifest.artifacts.push({ path: "index.html", description: "Main evidence package landing page with links to reports, artifacts, screenshots, extracted data, network metadata, and documentation.", sha256: indexHash });
+  manifest.artifacts.push({ path: "index.html", description: "Main evidence package landing page with links to reports, artifacts, screenshots, extracted data, resource timing, and documentation.", sha256: indexHash });
 
   const manifestBeforeIntegrity = JSON.stringify(manifest, null, 2);
   const manifestHash = await sha256Text(manifestBeforeIntegrity);
@@ -257,8 +271,7 @@ async function capturePage(caseInfo) {
     "extracted/storage_inventory.json": toUtf8(storageInventoryJson),
     "extracted/dom_summary.json": toUtf8(domSummaryJson),
     "extracted/resources.json": toUtf8(resourcesJson),
-    "network/performance_resource_timing.json": toUtf8(performanceJson),
-    "network/cdp_network_observation.json": toUtf8(networkObservationJson)
+    "network/performance_resource_timing.json": toUtf8(performanceJson)
   };
 
   if (fullPageScreenshotBytes) zipFiles["screenshots/screenshot_fullpage.png"] = fullPageScreenshotBytes;
@@ -270,69 +283,45 @@ async function capturePage(caseInfo) {
   await downloadBytesAsFile(`${packageBaseName}.zip`, finalZipBytes, "application/zip");
   await downloadTextAsFile(`${packageBaseName}.zip.sha256.txt`, `${finalZipHash}  ${packageBaseName}.zip\n`, "text/plain");
 
-  return { capture_id: captureId, package_name: `${packageBaseName}.zip`, package_sha256: finalZipHash, fullpage_capture_status: fullPageCaptureStatus };
+  const completedCapture = {
+    capture_id: captureId,
+    package_name: `${packageBaseName}.zip`,
+    package_sha256: finalZipHash,
+    fullpage_capture_status: fullPageCaptureStatus,
+    captured_url: tab.url,
+    case_number: caseInfo.case_number,
+    item_number: caseInfo.item_number,
+    investigator: caseInfo.investigator,
+    agency: caseInfo.agency
+  };
+
+  // Retain only the reusable case-identification fields from the most recent
+  // successful capture for the current Chrome session. Investigator notes are
+  // deliberately excluded. The popup never auto-populates these values; the
+  // user must explicitly choose "Use Last Case Information" on a later capture.
+  // Chrome clears this session storage when the browser session ends.
+  await chrome.storage.session.set({
+    lastCaseInfo: {
+      caseNumber: caseInfo.case_number,
+      itemNumber: caseInfo.item_number,
+      investigator: caseInfo.investigator,
+      agency: caseInfo.agency
+    },
+    pendingSupplementCapture: completedCapture
+  });
+
+  await chrome.tabs.create({ url: chrome.runtime.getURL("supplement.html"), active: true });
+
+  return completedCapture;
 }
 
 async function captureFullPageWithDebugger(tabId) {
   const debuggee = { tabId };
-  const networkObservation = buildEmptyCdpNetworkObservation();
-
-  const onEvent = (source, method, params) => {
-    if (!source || source.tabId !== tabId) return;
-    try {
-      if (method === "Network.requestWillBeSent") {
-        networkObservation.requests.push({
-          requestId: params.requestId,
-          url: params.request?.url || "",
-          method: params.request?.method || "",
-          resourceType: params.type || "",
-          timestamp: params.timestamp || null,
-          wallTime: params.wallTime || null,
-          documentURL: params.documentURL || "",
-          redirect_present: Boolean(params.redirectResponse),
-          initiator_type: params.initiator?.type || "",
-          headers_collected: false,
-          cookies_collected: false
-        });
-      } else if (method === "Network.responseReceived") {
-        const r = params.response || {};
-        networkObservation.responses.push({
-          requestId: params.requestId,
-          url: r.url || "",
-          status: r.status || null,
-          statusText: r.statusText || "",
-          mimeType: r.mimeType || "",
-          protocol: r.protocol || "",
-          remoteIPAddress: r.remoteIPAddress || "",
-          remotePort: r.remotePort || null,
-          fromDiskCache: Boolean(r.fromDiskCache),
-          fromServiceWorker: Boolean(r.fromServiceWorker),
-          encodedDataLength: r.encodedDataLength || null,
-          resourceType: params.type || "",
-          securityState: r.securityState || "",
-          securityDetails: r.securityDetails ? summarizeSecurityDetails(r.securityDetails) : null,
-          headers_collected: false,
-          cookies_collected: false
-        });
-      } else if (method === "Network.loadingFailed") {
-        networkObservation.failures.push({
-          requestId: params.requestId,
-          timestamp: params.timestamp || null,
-          resourceType: params.type || "",
-          errorText: params.errorText || "",
-          canceled: Boolean(params.canceled),
-          blockedReason: params.blockedReason || ""
-        });
-      }
-    } catch (e) {
-      networkObservation.collection_errors.push(e.message);
-    }
-  };
-
   const methodLog = {
     method: "chrome.debugger / Chrome DevTools Protocol",
     protocol_version: "1.3",
-    strategy: "Temporarily resize browser emulation viewport to full page height, then capture one screenshot. Privacy-minimized network events are collected only while debugger is attached.",
+    purpose: "Full-page screenshot capture only",
+    strategy: "Temporarily resize the browser emulation viewport to the full page content size, capture one screenshot, clear the emulation override, and detach the debugger.",
     commands: [],
     attached_utc: new Date().toISOString(),
     detached_utc: null,
@@ -342,20 +331,18 @@ async function captureFullPageWithDebugger(tabId) {
   };
 
   try {
-    chrome.debugger.onEvent.addListener(onEvent);
     await chrome.debugger.attach(debuggee, "1.3");
     methodLog.commands.push("chrome.debugger.attach protocol version 1.3");
+
     await chrome.debugger.sendCommand(debuggee, "Page.enable");
     methodLog.commands.push("Page.enable");
-    await chrome.debugger.sendCommand(debuggee, "Runtime.enable");
-    methodLog.commands.push("Runtime.enable");
-    await chrome.debugger.sendCommand(debuggee, "Network.enable");
-    methodLog.commands.push("Network.enable privacy-minimized event collection; request/response headers not stored");
 
     const layoutMetrics = await chrome.debugger.sendCommand(debuggee, "Page.getLayoutMetrics");
     methodLog.commands.push("Page.getLayoutMetrics");
     const contentSize = layoutMetrics.cssContentSize || layoutMetrics.contentSize;
-    if (!contentSize || !contentSize.width || !contentSize.height) throw new Error("Unable to determine page content size.");
+    if (!contentSize || !contentSize.width || !contentSize.height) {
+      throw new Error("Unable to determine page content size.");
+    }
 
     let width = Math.ceil(contentSize.width);
     let height = Math.ceil(contentSize.height);
@@ -371,16 +358,19 @@ async function captureFullPageWithDebugger(tabId) {
     methodLog.commands.push("Emulation.setDeviceMetricsOverride width=fullPageWidth height=fullPageHeight");
     await sleep(750);
 
-    const screenshot = await chrome.debugger.sendCommand(debuggee, "Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: true });
+    const screenshot = await chrome.debugger.sendCommand(debuggee, "Page.captureScreenshot", {
+      format: "png",
+      fromSurface: true,
+      captureBeyondViewport: true
+    });
     methodLog.commands.push("Page.captureScreenshot format=png fromSurface=true captureBeyondViewport=true");
 
     await chrome.debugger.sendCommand(debuggee, "Emulation.clearDeviceMetricsOverride");
     methodLog.commands.push("Emulation.clearDeviceMetricsOverride");
     methodLog.success = true;
     methodLog.status = "success";
-    networkObservation.collection_window = { started_utc: methodLog.attached_utc, completed_utc: new Date().toISOString() };
 
-    return { dataUrl: "data:image/png;base64," + screenshot.data, methodLog, networkObservation };
+    return { dataUrl: "data:image/png;base64," + screenshot.data, methodLog };
   } catch (error) {
     methodLog.success = false;
     methodLog.status = "failed";
@@ -391,7 +381,6 @@ async function captureFullPageWithDebugger(tabId) {
     } catch (clearError) {
       methodLog.clear_emulation_error = clearError.message;
     }
-    networkObservation.collection_errors.push(error.message);
     throw new Error("Full-page debugger capture failed: " + error.message);
   } finally {
     try {
@@ -402,46 +391,7 @@ async function captureFullPageWithDebugger(tabId) {
       methodLog.detached_utc = new Date().toISOString();
       methodLog.detach_error = detachError.message;
     }
-    try { chrome.debugger.onEvent.removeListener(onEvent); } catch (_e) {}
   }
-}
-
-function buildEmptyCdpNetworkObservation() {
-  return {
-    collection_method: "Chrome DevTools Protocol Network events while debugger was attached during capture",
-    privacy_minimization: {
-      request_headers_collected: false,
-      response_headers_collected: false,
-      cookies_collected: false,
-      credential_values_collected: false,
-      local_source_ip_collected: false,
-      public_ip_collected: false,
-      traceroute_collected: false,
-      whois_collected: false,
-      rdap_collected: false,
-      os_dns_lookup_collected: false
-    },
-    limitation: "This is not a complete HAR for the original page load. It records only privacy-minimized events exposed while the debugger was attached, usually during full-page capture and any lazy-load activity.",
-    requests: [],
-    responses: [],
-    failures: [],
-    collection_errors: []
-  };
-}
-
-function summarizeSecurityDetails(d) {
-  return {
-    protocol: d.protocol || "",
-    keyExchange: d.keyExchange || "",
-    cipher: d.cipher || "",
-    certificateId: d.certificateId || null,
-    subjectName: d.subjectName || "",
-    issuer: d.issuer || "",
-    validFrom: d.validFrom || null,
-    validTo: d.validTo || null,
-    sanList: Array.isArray(d.sanList) ? d.sanList.slice(0, 50) : [],
-    certificateTransparencyCompliance: d.certificateTransparencyCompliance || ""
-  };
 }
 
 function buildIndexHtml({ manifest, hasFullPageScreenshot }) {
@@ -482,14 +432,13 @@ ${hasFullPageScreenshot ? `<a class="card" href="screenshots/screenshot_fullpage
 <a class="card" href="extracted/dom_summary.json"><span class="card-title">Open DOM Summary</span><span class="card-desc">A simplified outline of the page structure, such as headings, buttons, forms, frames, and media elements.</span></a>
 <a class="card" href="extracted/resources.json"><span class="card-title">Open Resource Inventory</span><span class="card-desc">A list of page resources such as scripts, stylesheets, fonts, images, videos, and frames that helped build the page.</span></a>
 <a class="card" href="network/performance_resource_timing.json"><span class="card-title">Open Resource Timing</span><span class="card-desc">Browser timing data showing resources the page loaded and how long they took. Useful for documenting what the browser requested.</span></a>
-<a class="card" href="network/cdp_network_observation.json"><span class="card-title">Open CDP Network Observation</span><span class="card-desc">Limited Chrome DevTools network observations collected during capture, such as request URLs, response status, protocol, and security details when available.</span></a>
 </div>
 </section>
 <section><h2>Primary Visible Screenshot</h2><p>This is the primary visual record of the visible browser viewport at the time of capture.</p><p><a href="screenshots/screenshot_visible.png">Open visible screenshot</a></p><a href="screenshots/screenshot_visible.png"><img src="screenshots/screenshot_visible.png" alt="Visible screenshot"></a></section>
 ${fullPageBlock}
 <section><h2>Documentation</h2><ul><li><a href="documentation/README.html">README</a></li><li><a href="documentation/COLLECTION_GUIDE.html">Collection Guide</a></li><li><a href="documentation/ARTIFACT_GUIDE.html">Artifact Guide</a></li><li><a href="documentation/NIST_ALIGNMENT.html">NIST Alignment</a></li><li><a href="documentation/TOOL_LIMITATIONS.html">Tool Limitations</a></li><li><a href="documentation/PRIVACY_MINIMIZATION.html">Privacy Minimization</a></li><li><a href="documentation/VALIDATION_GUIDE.html">Validation Guide</a></li><li><a href="documentation/LICENSE.html">License</a></li></ul></section>
 <section><h2>Artifact Hashes</h2><table><tr><th>File</th><th>SHA-256</th></tr>${manifest.artifacts.map(a => `<tr><td>${escapeHtml(a.path)}</td><td><code>${escapeHtml(a.sha256)}</code></td></tr>`).join("")}</table></section>
-<div class="warning"><strong>Privacy note:</strong> This edition does not collect local/source IP address, public IP address, traceroute, WHOIS, RDAP, OS-level DNS lookups, cookie values, cookie names, request headers, credential values, localStorage values, sessionStorage values, or local file paths.</div>
+<div class="notice"><strong>Network Attribution and Infrastructure Research:</strong> CaseCapture is designed to preserve the webpage and related capture information at the time of collection. Investigators are responsible for conducting any separate IP address, DNS, WHOIS, hosting provider, CDN, VPN/proxy, or other network attribution research independently and documenting relevant findings in the Investigator Supplement.</div>
 <div class="warning"><strong>Image reference warning:</strong> images.json records image URLs and metadata, not preserved image binaries. HTML snapshots may load live/current external resources if opened later. The screenshots are the best visual record of what was observed at capture time.</div>
 </body></html>`;
 }
@@ -499,20 +448,20 @@ function buildReportHtml({ manifest, visibleTextPreview }) {
 <section><h2>Case Information</h2><table><tr><th>Case Number</th><td>${escapeHtml(manifest.case.case_number)}</td></tr><tr><th>Item / Evidence Number</th><td>${escapeHtml(manifest.case.item_number)}</td></tr><tr><th>Investigator</th><td>${escapeHtml(manifest.case.investigator)}</td></tr><tr><th>Agency</th><td>${escapeHtml(manifest.case.agency)}</td></tr></table></section>
 <section><h2>Capture Information</h2><table><tr><th>Capture ID</th><td><code>${escapeHtml(manifest.capture.capture_id)}</code></td></tr><tr><th>Observed Local Time</th><td>${escapeHtml(manifest.capture.local_time_observed)}</td></tr><tr><th>Started UTC</th><td>${escapeHtml(manifest.capture.started_utc)}</td></tr><tr><th>Completed UTC</th><td>${escapeHtml(manifest.capture.completed_utc)}</td></tr><tr><th>Time Zone</th><td>${escapeHtml(manifest.capture.timezone)}</td></tr><tr><th>Full-Page Capture Status</th><td>${escapeHtml(manifest.capture.fullpage_capture_status)}</td></tr></table></section>
 <section><h2>Browser Observation</h2><table><tr><th>Tab URL</th><td><code>${escapeHtml(manifest.browser_observation.tab_url)}</code></td></tr><tr><th>Page Reported URL</th><td><code>${escapeHtml(manifest.browser_observation.page_reported_url)}</code></td></tr><tr><th>Canonical URL</th><td><code>${escapeHtml(manifest.browser_observation.canonical_url || "")}</code></td></tr><tr><th>Tab Title</th><td>${escapeHtml(manifest.browser_observation.tab_title)}</td></tr><tr><th>Page Title</th><td>${escapeHtml(manifest.browser_observation.page_title)}</td></tr><tr><th>Referrer</th><td><code>${escapeHtml(manifest.browser_observation.referrer || "")}</code></td></tr><tr><th>User Agent</th><td><code>${escapeHtml(manifest.browser_observation.user_agent)}</code></td></tr></table></section>
-<section><h2>Privacy-Minimized Metadata</h2><table><tr><th>Local/source IP collected</th><td>${manifest.privacy_minimization.local_source_ip_collected}</td></tr><tr><th>Public IP collected</th><td>${manifest.privacy_minimization.public_ip_collected}</td></tr><tr><th>Cookie values collected</th><td>${manifest.privacy_minimization.cookie_values_collected}</td></tr><tr><th>Cookie names collected</th><td>${manifest.privacy_minimization.cookie_names_collected}</td></tr><tr><th>Request headers collected</th><td>${manifest.privacy_minimization.request_headers_collected}</td></tr><tr><th>Traceroute / WHOIS / RDAP collected</th><td>false</td></tr></table></section>
+<section><h2>Collection Scope</h2><div class="notice">${escapeHtml(manifest.collection_scope.summary)}</div></section>
 <section><h2>Artifact Hashes</h2><table><tr><th>File</th><th>SHA-256</th></tr>${manifest.artifacts.map(a => `<tr><td>${escapeHtml(a.path)}</td><td><code>${escapeHtml(a.sha256)}</code></td></tr>`).join("")}</table></section>
 <section><h2>Investigator Notes</h2><pre>${escapeHtml(manifest.case.investigator_notes || "")}</pre></section><section><h2>Visible Text Preview</h2><pre>${escapeHtml(visibleTextPreview || "")}</pre></section>
-<section><h2>Forensic Notice</h2><div class="notice">${escapeHtml(manifest.forensic_notice.limitation)}</div><div class="notice">${escapeHtml(manifest.forensic_notice.screenshot_notice)}</div><div class="warning">${escapeHtml(manifest.forensic_notice.html_notice)}</div><div class="warning">${escapeHtml(manifest.forensic_notice.image_reference_notice)}</div><div class="warning">${escapeHtml(manifest.forensic_notice.network_metadata_notice)}</div></section></body></html>`;
+<section><h2>Forensic Notice</h2><div class="notice">${escapeHtml(manifest.forensic_notice.limitation)}</div><div class="notice">${escapeHtml(manifest.forensic_notice.screenshot_notice)}</div><div class="warning">${escapeHtml(manifest.forensic_notice.html_notice)}</div><div class="warning">${escapeHtml(manifest.forensic_notice.image_reference_notice)}</div><div class="warning">${escapeHtml(manifest.forensic_notice.network_research_notice)}</div></section></body></html>`;
 }
 
 function buildDocumentationFiles() {
   return {
-    "documentation/README.html": buildDocPage("README", `<p><strong>CaseCapture OSINT</strong> is a local Chrome extension used to document web content observed in a browser session.</p><p>The tool was created by <strong>Richard Theberge</strong> as a local-first OSINT web documentation utility.</p><p>This edition adds privacy-minimized metadata collection, including browser environment, viewport/screen details, DOM summary, resource inventory, performance resource timing, and limited DevTools network observations during capture.</p><p>The tool does not independently authenticate the identity of a website operator, social media account holder, content author, or server-side record.</p>`),
+    "documentation/README.html": buildDocPage("README", `<p><strong>CaseCapture OSINT</strong> is a local Chrome extension used to document web content observed in a browser session.</p><p>The tool was created by <strong>Richard Theberge</strong> as a local-first OSINT web documentation utility.</p><p>This edition adds privacy-minimized metadata collection, including browser environment, viewport/screen details, DOM summary, resource inventory, and browser Performance API resource timing. The Chrome Debugger API is used only to create the full-page screenshot.</p><p>The tool does not independently authenticate the identity of a website operator, social media account holder, content author, or server-side record.</p>`),
     "documentation/COLLECTION_GUIDE.html": buildDocPage("Collection Guide", `<h2>Recommended Collection Environment</h2><p>Whenever practical, investigators should conduct OSINT and online evidence documentation from a clean, temporary, or controlled environment, such as Windows Sandbox, a clean virtual machine, a dedicated OSINT VM, a non-persistent/ephemeral desktop, a dedicated browser profile, or a controlled forensic workstation.</p><h2>Suggested Collection Steps</h2><ol><li>Start from a clean or controlled environment.</li><li>Confirm the system date, time, and time zone.</li><li>Avoid logging into personal accounts unless necessary and legally appropriate.</li><li>Document whether the content was public, authenticated, or otherwise access-controlled.</li><li>Navigate to the target URL and allow the page to load.</li><li>Avoid unnecessary interaction before capture.</li><li>Run the capture and save the ZIP and external SHA-256 file to the evidence location.</li><li>Preserve the original exported ZIP without editing it; review from a copy.</li></ol><h2>Authentication Warning</h2><p>If the page requires authentication, document the account used, the legal authority or consent basis, and whether displayed content may be affected by account permissions, location, language, personalization, cookies, or browser state.</p>`),
-    "documentation/ARTIFACT_GUIDE.html": buildDocPage("Artifact Guide", `<table><tr><th>File</th><th>Description</th></tr><tr><td>index.html</td><td>Main evidence package landing page.</td></tr><tr><td>report.html</td><td>Human-readable capture report.</td></tr><tr><td>manifest.json</td><td>Primary technical metadata and hash manifest.</td></tr><tr><td>method_log.json</td><td>Technical log showing how the capture was performed.</td></tr><tr><td>screenshots/screenshot_visible.png</td><td>Primary screenshot of the visible browser viewport.</td></tr><tr><td>screenshots/screenshot_fullpage.png</td><td>Supplemental browser-rendered full-page capture, if successful.</td></tr><tr><td>page/page_snapshot.html</td><td>Raw HTML snapshot from the rendered DOM.</td></tr><tr><td>page/page_snapshot_readable.html</td><td>Review copy of the HTML snapshot with a banner and base URL added.</td></tr><tr><td>page/visible_text.txt</td><td>Visible text extracted from document.body.innerText.</td></tr><tr><td>extracted/browser_environment.json</td><td>Browser, viewport, screen, language, and timezone details. Local/source IP and public IP are not collected.</td></tr><tr><td>extracted/storage_inventory.json</td><td>Counts only. Cookie names/values and storage keys/values are not collected.</td></tr><tr><td>network/performance_resource_timing.json</td><td>Browser Performance API resource timing summary.</td></tr><tr><td>network/cdp_network_observation.json</td><td>Limited privacy-minimized DevTools network observations during capture.</td></tr></table><h2>Image Reference Warning</h2><p>images.json records image URLs and metadata, not preserved image binaries. HTML snapshots may load live/current external resources if opened later. The screenshots are the best visual record of what was observed at capture time.</p>`),
+    "documentation/ARTIFACT_GUIDE.html": buildDocPage("Artifact Guide", `<table><tr><th>File</th><th>Description</th></tr><tr><td>index.html</td><td>Main evidence package landing page.</td></tr><tr><td>report.html</td><td>Human-readable capture report.</td></tr><tr><td>manifest.json</td><td>Primary technical metadata and hash manifest.</td></tr><tr><td>method_log.json</td><td>Technical log showing how the capture was performed.</td></tr><tr><td>screenshots/screenshot_visible.png</td><td>Primary screenshot of the visible browser viewport.</td></tr><tr><td>screenshots/screenshot_fullpage.png</td><td>Supplemental browser-rendered full-page capture, if successful.</td></tr><tr><td>page/page_snapshot.html</td><td>Raw HTML snapshot from the rendered DOM.</td></tr><tr><td>page/page_snapshot_readable.html</td><td>Review copy of the HTML snapshot with a banner and base URL added.</td></tr><tr><td>page/visible_text.txt</td><td>Visible text extracted from document.body.innerText.</td></tr><tr><td>extracted/browser_environment.json</td><td>Browser, viewport, screen, language, and timezone details. The investigator's local/source IP is not collected, and the investigator's public-facing IP is not independently determined.</td></tr><tr><td>extracted/storage_inventory.json</td><td>Counts only. Cookie names/values and storage keys/values are not collected.</td></tr><tr><td>network/performance_resource_timing.json</td><td>Browser Performance API resource timing summary.</td></tr></table><h2>Image Reference Warning</h2><p>images.json records image URLs and metadata, not preserved image binaries. HTML snapshots may load live/current external resources if opened later. The screenshots are the best visual record of what was observed at capture time.</p>`),
     "documentation/NIST_ALIGNMENT.html": buildDocPage("NIST Alignment", `<p>This tool is designed to support NIST-aligned forensic documentation practices. It is not certified by NIST and should not be described as NIST-certified.</p><ul><li>Preservation of generated digital artifacts.</li><li>Recording date, time, time zone, URL, title, browser, viewport, and environment metadata.</li><li>Separating automated observations from investigator notes.</li><li>Generating SHA-256 hashes for artifact integrity verification.</li><li>Creating method logs for repeatability and review.</li><li>Creating human-readable reports describing acquisition methods and limitations.</li><li>Applying privacy minimization by excluding cookie values, credential values, request headers, and source-machine network identifiers.</li></ul>`),
-    "documentation/TOOL_LIMITATIONS.html": buildDocPage("Tool Limitations", `<ul><li>The tool documents what was observed in the browser session; it does not authenticate source accounts or server-side records.</li><li>Screenshots are browser-rendered representations of observed content.</li><li>Dynamic pages may change during or after capture.</li><li>Full-page screenshots may be affected by lazy loading, animations, viewport resizing, sticky elements, and scripts.</li><li>HTML snapshots may not display correctly when opened later.</li><li>Network observations are not a full HAR of the original page load.</li><li>DNS, RDAP, WHOIS, traceroute, local/source IP, and public IP are intentionally not collected in this edition.</li><li>Cookie values, credential values, request headers, localStorage values, and sessionStorage values are not collected.</li></ul>`),
-    "documentation/PRIVACY_MINIMIZATION.html": buildDocPage("Privacy Minimization", `<p>This edition intentionally avoids collecting data that could expose too much about the investigator's source machine or credentials.</p><h2>Not Collected</h2><ul><li>Local/source IP address</li><li>Public IP address</li><li>Traceroute results</li><li>WHOIS/RDAP data</li><li>OS-level DNS lookup results</li><li>Request headers</li><li>Cookie values</li><li>Cookie names</li><li>Credential values</li><li>localStorage/sessionStorage keys or values</li><li>Local file paths</li><li>Hardware concurrency and device memory</li></ul><h2>Collected</h2><ul><li>Browser version/user agent</li><li>Viewport and screen dimensions</li><li>Language and time zone</li><li>Resource timing URLs and performance metadata</li><li>Limited remote server IP/port when exposed by Chrome DevTools response events during capture</li><li>Rendered DOM summaries that exclude form/credential values</li></ul>`),
+    "documentation/TOOL_LIMITATIONS.html": buildDocPage("Tool Limitations", `<ul><li>The tool documents what was observed in the browser session; it does not authenticate source accounts or server-side records.</li><li>Screenshots are browser-rendered representations of observed content.</li><li>Dynamic pages may change during or after capture.</li><li>Full-page screenshots may be affected by lazy loading, animations, viewport resizing, sticky elements, and scripts.</li><li>HTML snapshots may not display correctly when opened later.</li><li>CaseCapture does not perform IP address, DNS, WHOIS, hosting provider, CDN, VPN/proxy, traceroute, RDAP, or other network attribution research as part of the capture process. Any such research is the investigator's responsibility and should be documented separately in the Investigator Supplement.</li><li>Cookie values, credential values, request headers, localStorage values, and sessionStorage values are not collected.</li></ul>`),
+    "documentation/PRIVACY_MINIMIZATION.html": buildDocPage("Privacy Minimization", `<p>This edition intentionally avoids collecting data that could expose too much about the investigator's source machine or credentials.</p><h2>Not Collected</h2><ul><li>The investigator's local/source IP address</li><li>Independent determination of the investigator's public-facing IP address</li><li>Traceroute results</li><li>WHOIS/RDAP ownership data</li><li>DNS resolution history or OS-level DNS lookup results</li><li>Request headers</li><li>Cookie values</li><li>Cookie names</li><li>Credential values</li><li>localStorage/sessionStorage keys or values</li><li>Local file paths</li><li>Hardware concurrency and device memory</li></ul><h2>Collected</h2><ul><li>Browser version/user agent</li><li>Viewport and screen dimensions</li><li>Language and time zone</li><li>Resource timing URLs and performance metadata</li><li>Rendered DOM summaries that exclude form/credential values</li></ul>`),
     "documentation/VALIDATION_GUIDE.html": buildDocPage("Validation Guide", `<ol><li>Capture a simple static webpage.</li><li>Confirm screenshot_visible.png matches the browser viewport.</li><li>Confirm screenshot_fullpage.png reasonably represents the full rendered page.</li><li>Confirm report.html accurately lists URL, title, timestamps, privacy-minimization fields, and hashes.</li><li>Confirm hashes using an external tool such as PowerShell Get-FileHash.</li><li>Test dynamic pages, login pages, lazy-loaded images, long pages, and pages with embedded media.</li><li>Document known limitations before operational use.</li></ol><pre>Get-FileHash .\\screenshot_visible.png -Algorithm SHA256
 Get-FileHash .\\manifest.json -Algorithm SHA256
 Get-FileHash .\\CaseCapture_PACKAGE.zip -Algorithm SHA256</pre>`),

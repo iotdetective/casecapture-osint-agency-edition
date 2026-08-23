@@ -56,3 +56,37 @@ button:disabled {
   margin-top: 10px;
   font-size: 12px;
 }
+
+
+.secondary {
+  background: #5b6570;
+}
+
+.secondary:hover {
+  background: #454d55;
+}
+
+.tertiary {
+  background: #e5e7eb;
+  color: #333;
+  border: 1px solid #c4c7cc;
+}
+
+.tertiary:hover {
+  background: #d7d9dd;
+}
+
+.saved-case-controls {
+  margin-bottom: 10px;
+}
+
+.saved-case-controls button {
+  margin-top: 6px;
+}
+
+.helper-text {
+  margin: 6px 0 10px 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #555;
+}

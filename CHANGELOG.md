@@ -10,6 +10,54 @@ This project uses simple version numbering during early development:
 
 ---
 
+## v0.6.3 — 2026-08-23
+
+### Chrome Release
+
+- Promoted the tested Chrome v0.6.3 build to a production release.
+- Added the CaseCapture icon set at 16, 32, 48, and 128 pixels and wired the icons into the extension manifest and toolbar action.
+- Updated the manifest description for public distribution.
+
+### Permissions and Capture Scope
+
+- Removed persistent `<all_urls>` host access.
+- Removed the `tabs` permission.
+- Uses user-initiated `activeTab` access for the selected webpage.
+- Limited supported capture targets to ordinary HTTP and HTTPS webpages.
+- Retained the Chrome `debugger` permission only for full-page screenshot generation and related page-rendering measurements.
+- Removed Chrome DevTools Protocol network-event collection, including remote IP/port observations.
+
+### Network Research Separation
+
+- Removed automatic network-attribution collection from the Chrome capture workflow.
+- Clarified that IP, DNS, WHOIS/RDAP, hosting-provider, CDN, VPN/proxy, traceroute, and related network research is the investigator's responsibility and occurs separately from the CaseCapture collection process.
+- Added/updated notices directing investigators to document separately obtained network or infrastructure findings in the Investigator Supplement.
+- Retained browser Performance API resource timing information as a rendering/resource observation, not as a network-attribution artifact.
+
+### Investigator Supplement
+
+- Added the linked Investigator Supplement workflow for investigator-authored observations, actions, access context, separately obtained research, and supplemental files.
+- Supplemental files are individually hashed with SHA-256.
+- The supplement records the SHA-256 of the completed primary evidence ZIP, linking the two packages without modifying the original capture.
+- Supports multiple separately obtained research entries.
+- Supports repeated file selections, descriptions/provenance, and removal before supplement finalization.
+- Supplemental files are limited to 25 MB each and 100 MB total.
+
+### Case Information Reuse
+
+- New capture forms always open blank.
+- Added **Use Last Case Information** to intentionally restore the most recent Case Number, Item / Evidence Number, Investigator, and Agency during the current Chrome session.
+- Added **Clear Saved Case Information**.
+- Investigator Notes are never retained for reuse.
+- Reusable case information is saved only after a successful primary capture.
+- Reusable case information and temporary supplement linkage use Chrome session storage and are cleared when the browser session ends.
+- Legacy persistent case information from earlier test builds is migrated into the current session once and removed from persistent local storage.
+
+### Documentation and Privacy
+
+- Updated capture reports, manifests, method logs, artifact guidance, limitations, and privacy-minimization documentation to match the narrower Chrome collection behavior.
+- Added a public privacy policy in `PRIVACY.md`.
+
 ## v0.5.1
 
 ### Added

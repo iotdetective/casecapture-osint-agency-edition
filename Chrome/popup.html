@@ -8,6 +8,12 @@
 <body>
   <h1>CaseCapture OSINT</h1>
 
+  <div class="saved-case-controls">
+    <button id="useLastCaseBtn" class="secondary" type="button">Use Last Case Information</button>
+    <button id="clearSavedCaseBtn" class="tertiary" type="button">Clear Saved Case Information</button>
+    <p class="helper-text">Saved case information is loaded only when you choose to reuse it. Review all fields before capture. Investigator notes are never retained for reuse.</p>
+  </div>
+
   <label>Case Number</label>
   <input id="caseNumber" type="text" placeholder="26-12345">
 
@@ -24,6 +30,7 @@
   <textarea id="notes" placeholder="Brief investigator notes..."></textarea>
 
   <button id="captureBtn">Capture Current Page</button>
+  <button id="openSupplementBtn" class="secondary">Open Last Investigator Supplement</button>
 
   <div id="status"></div>
 
