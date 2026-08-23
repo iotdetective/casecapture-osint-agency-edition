@@ -12,7 +12,8 @@ The project includes editions for:
 
 CaseCapture OSINT performs user-initiated, local-first webpage capture and exports the resulting material into a structured, reviewable evidence package.
 
-<img width="378" height="487" alt="CaseCapture OSINT extension interface" src="https://github.com/user-attachments/assets/997a053d-98fc-4c13-93f4-b35282f7f314" />
+<img width="389" height="604" alt="image" src="https://github.com/user-attachments/assets/72a54f32-955d-4896-a587-a54a34380862" />
+
 
 ---
 
